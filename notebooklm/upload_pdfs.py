@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import List
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeout
 
-from config import (
+from notebooklm.config import (
     NOTEBOOKLM_URL, STATE_FILE, DEFAULT_LIMIT, HEADLESS,
     TIMEOUT, DELAY_BETWEEN_ACTIONS, PROCESSING_TIMEOUT, LOG_FOLDER
 )
-from utils import (
+from notebooklm.utils import (
     setup_logger, UploadLogger, get_pdf_files,
     format_file_size, print_progress_bar
 )

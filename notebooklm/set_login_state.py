@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
-from config import NOTEBOOKLM_URL, STATE_FILE, TIMEOUT
-from utils import setup_logger
+from notebooklm.config import NOTEBOOKLM_URL, STATE_FILE, TIMEOUT
+from notebooklm.utils import setup_logger
 
 
 def main():
