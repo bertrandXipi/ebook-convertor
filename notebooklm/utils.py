@@ -76,14 +76,33 @@ class UploadLogger:
         return str(self.log_file)
 
 
-def get_pdf_files(folder: Path) -> List[Path]:
-    """Récupère tous les fichiers PDF d'un dossier."""
+def get_pdf_files(folder: Path, max_size_mb: int = 200) -> List[Path]:
+    """Récupère tous les fichiers PDF d'un dossier (< max_size_mb)."""
     folder = Path(folder)
     if not folder.exists():
         raise FileNotFoundError(f"Dossier introuvable : {folder}")
     
-    pdf_files = sorted(folder.glob("*.pdf"))
-    return pdf_files
+    all_pdfs = sorted(folder.glob("*.pdf"))
+    
+    # Filtrer par taille
+    valid_pdfs = []
+    skipped = []
+    
+    for pdf in all_pdfs:
+        size_mb = pdf.stat().st_size / (1024 * 1024)
+        if size_mb <= max_size_mb:
+            valid_pdfs.append(pdf)
+        else:
+            skipped.append((pdf.name, size_mb))
+    
+    if skipped:
+        import logging
+        logger = logging.getLogger("notebooklm")
+        logger.warning(f"⚠️  {len(skipped)} fichier(s) ignoré(s) (> {max_size_mb} MB) :")
+        for name, size in skipped:
+            logger.warning(f"   - {name} ({size:.1f} MB)")
+    
+    return valid_pdfs
 
 
 def format_file_size(size_bytes: int) -> str:

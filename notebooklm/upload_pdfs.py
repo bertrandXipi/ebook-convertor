@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import List
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeout
 
-from notebooklm.config import (
+from config import (
     NOTEBOOKLM_URL, STATE_FILE, DEFAULT_LIMIT, HEADLESS,
     TIMEOUT, DELAY_BETWEEN_ACTIONS, PROCESSING_TIMEOUT, LOG_FOLDER
 )
-from notebooklm.utils import (
+from utils import (
     setup_logger, UploadLogger, get_pdf_files,
     format_file_size, print_progress_bar
 )
@@ -30,57 +30,100 @@ class NotebookLMUploader:
         self.page = None
     
     def create_notebook(self, title: str) -> str:
-        """Crée un nouveau notebook et retourne son URL."""
+        """Crée un nouveau notebook et retourne son URL (Version Robuste)."""
         self.logger.info(f"📚 Création du notebook '{title}'...")
         
         try:
-            # Cliquer sur le bouton "New notebook" (nouveau sélecteur)
-            self.page.click('.create-new-action-button-icon-container, button:has-text("New notebook")', timeout=TIMEOUT)
-            time.sleep(DELAY_BETWEEN_ACTIONS)
+            # 1. Cliquer sur "Nouveau notebook"
+            self.page.wait_for_selector('.create-new-action-button-icon-container, button:has-text("New notebook")', state='visible')
+            self.page.click('.create-new-action-button-icon-container, button:has-text("New notebook")')
             
-            # Attendre que le notebook soit créé
+            # 2. Attendre la redirection et le chargement complet
             self.page.wait_for_url("**/notebook/**", timeout=TIMEOUT)
-            notebook_url = self.page.url
             
-            # Définir le titre
+            # 3. Pause explicite pour laisser Angular charger le DOM (crucial pour NotebookLM)
+            time.sleep(3)
+            
+            # 4. Gestion du titre
             try:
-                title_input = self.page.locator('input[placeholder*="title"], [aria-label*="title"]').first
-                title_input.fill(title)
-                time.sleep(1)
+                title_selector = 'input[aria-label*="Title"], input[data-placeholder="Untitled notebook"], .notebook-title-input'
+                self.page.wait_for_selector(title_selector, state='visible', timeout=10000)
+                self.page.click(title_selector)
+                self.page.keyboard.press("Control+A")
+                self.page.keyboard.press("Backspace")
+                self.page.fill(title_selector, title)
+                self.page.keyboard.press("Enter")
             except Exception as e:
-                self.logger.warning(f"⚠️  Impossible de définir le titre : {e}")
+                self.logger.warning(f"⚠️  Attention: Titre peut-être non défini ({e})")
             
-            self.logger.info(f"✓ Notebook créé : {notebook_url}")
-            return notebook_url
+            self.logger.info(f"✓ Notebook créé : {self.page.url}")
+            return self.page.url
         
         except Exception as e:
             raise Exception(f"Erreur lors de la création du notebook : {e}")
     
-    def upload_pdfs(self, pdf_files: List[Path], notebook_title: str, notebook_url: str):
-        """Upload une liste de PDFs vers le notebook."""
+    def upload_pdfs(self, pdf_files: List[Path], notebook_title: str, notebook_url: str, is_first: bool = True):
+        """Upload avec simulation 100% humaine (Mouvements souris + Clic maintenu)."""
         total = len(pdf_files)
         self.logger.info(f"📤 Upload de {total} PDF(s)...")
-        self.logger.info("")
         
         try:
-            # Trouver l'input file
-            file_input = self.page.locator('input[type="file"]').first
-            
-            # Convertir les paths en strings
             file_paths = [str(pdf.absolute()) for pdf in pdf_files]
             
-            # Upload tous les fichiers en une fois
-            self.logger.info("⬆️  Upload en cours...")
-            file_input.set_input_files(file_paths)
+            # Si ce n'est pas le premier upload, cliquer sur "Ajouter des sources"
+            if not is_first:
+                self.logger.info("📂 Ouverture de la modale...")
+                try:
+                    add_btn = 'button:has-text("Ajouter des sources"), button:has-text("Add sources")'
+                    self.page.click(add_btn, timeout=10000)
+                    time.sleep(2)
+                except Exception as e:
+                    self.logger.warning(f"⚠️  Impossible d'ouvrir la modale : {e}")
             
-            # Attendre un peu pour que l'upload démarre
-            time.sleep(DELAY_BETWEEN_ACTIONS)
+            # 1. CIBLAGE : On utilise le sélecteur précis
+            btn_selector = 'button[aria-label="Importer des sources depuis votre ordinateur"]'
+            self.logger.info("⏳ Recherche du bouton...")
             
-            # Attendre que tous les fichiers soient traités
-            self.logger.info("⏳ Traitement des fichiers par NotebookLM...")
+            # On attend qu'il soit stable dans le DOM
+            self.page.wait_for_selector(btn_selector, state='visible', timeout=30000)
+            
+            # Pause "humaine" pour que l'interface soit calme
+            time.sleep(2)
+            
+            # 2. APPROCHE SOURIS (HOVER)
+            self.logger.info("🖱️  Approche de la souris...")
+            button = self.page.locator(btn_selector).first
+            
+            # On déplace la souris physiquement sur l'élément
+            button.hover()
+            
+            # Petite pause comme si l'humain vérifiait qu'il est au bon endroit
+            time.sleep(0.5)
+            
+            # 3. CLIC HUMAIN ET INTERCEPTION
+            self.logger.info("👆 Clic physique...")
+            with self.page.expect_file_chooser() as fc_info:
+                # click(delay=200) maintient le clic enfoncé 200ms (comme un vrai doigt)
+                button.click(delay=200)
+            
+            # 4. ENVOI DES FICHIERS
+            file_chooser = fc_info.value
+            self.logger.info(f"📂 Fenêtre ouverte, sélection de {len(file_paths)} fichiers...")
+            file_chooser.set_files(file_paths)
+            
+            # 5. ATTENTE DU TRAITEMENT (CRUCIAL)
+            self.logger.info("⏳ Attente de la réaction de NotebookLM...")
+            
+            # On attend un peu que l'upload commence visuellement
+            time.sleep(5)
+            
+            # On attend la fin du traitement
             self._wait_for_processing(total)
             
-            # Logger tous les uploads comme réussis
+            # Vérification de sécurité : on attend encore un peu pour être sûr que Google sauvegarde
+            time.sleep(3)
+            
+            # Logs
             for pdf in pdf_files:
                 self.upload_logger.log_upload(
                     notebook_title=notebook_title,
@@ -89,20 +132,15 @@ class NotebookLMUploader:
                     url=notebook_url
                 )
             
-            self.logger.info("")
             self.logger.info(f"✅ {total} PDF(s) uploadé(s) avec succès")
         
+        except PlaywrightTimeout:
+            self.logger.error("❌ Le bouton n'a pas réagi ou la fenêtre ne s'est pas ouverte.")
+            self.page.screenshot(path="debug_human_click_fail.png")
+            raise
         except Exception as e:
-            self.logger.error(f"❌ Erreur lors de l'upload : {e}")
-            # Logger les échecs
-            for pdf in pdf_files:
-                self.upload_logger.log_upload(
-                    notebook_title=notebook_title,
-                    pdf_filename=pdf.name,
-                    status="failed",
-                    error_message=str(e),
-                    url=notebook_url
-                )
+            self.logger.error(f"❌ Erreur : {e}")
+            self.page.screenshot(path="debug_error.png")
             raise
     
     def _wait_for_processing(self, expected_count: int):
@@ -177,6 +215,8 @@ class NotebookLMUploader:
                 time.sleep(DELAY_BETWEEN_ACTIONS)
                 
                 # Traiter les PDFs par batch
+                # IMPORTANT : Limiter à 50 PDFs par upload pour éviter les timeouts
+                MAX_PER_UPLOAD = 50
                 created_notebooks = []
                 
                 for i in range(num_notebooks):
@@ -196,8 +236,21 @@ class NotebookLMUploader:
                     # Créer le notebook
                     notebook_url = self.create_notebook(notebook_title)
                     
-                    # Upload les PDFs
-                    self.upload_pdfs(batch, notebook_title, notebook_url)
+                    # Si le batch est trop gros, le diviser en sous-lots
+                    if len(batch) > MAX_PER_UPLOAD:
+                        self.logger.info(f"⚠️  Batch trop gros, division en sous-lots de {MAX_PER_UPLOAD}")
+                        for j in range(0, len(batch), MAX_PER_UPLOAD):
+                            sub_batch = batch[j:j + MAX_PER_UPLOAD]
+                            is_first_upload = (j == 0)
+                            self.logger.info(f"   📦 Sous-lot {j//MAX_PER_UPLOAD + 1} : {len(sub_batch)} PDF(s)")
+                            self.upload_pdfs(sub_batch, notebook_title, notebook_url, is_first=is_first_upload)
+                            # Attendre entre les sous-lots
+                            if j + MAX_PER_UPLOAD < len(batch):
+                                self.logger.info("   ⏳ Attente avant le prochain sous-lot...")
+                                time.sleep(5)
+                    else:
+                        # Upload normal
+                        self.upload_pdfs(batch, notebook_title, notebook_url, is_first=True)
                     
                     created_notebooks.append({
                         'title': notebook_title,
