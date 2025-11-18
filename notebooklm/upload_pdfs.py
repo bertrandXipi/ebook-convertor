@@ -214,8 +214,7 @@ class NotebookLMUploader:
                 self.page.goto(NOTEBOOKLM_URL, timeout=TIMEOUT)
                 time.sleep(DELAY_BETWEEN_ACTIONS)
                 
-                # Traiter les PDFs par batch
-                # IMPORTANT : Limiter à 50 PDFs par upload pour éviter les timeouts
+                # Traiter les PDFs par batch de 50 max
                 MAX_PER_UPLOAD = 50
                 created_notebooks = []
                 
@@ -231,26 +230,28 @@ class NotebookLMUploader:
                         notebook_title = title
                     
                     self.logger.info("")
-                    self.logger.info(f"📤 Upload Partie {i + 1}/{num_notebooks} ({len(batch)} PDF(s))...")
+                    self.logger.info(f"📤 Notebook {i + 1}/{num_notebooks} : {len(batch)} PDF(s)")
                     
-                    # Créer le notebook
+                    # Créer le notebook une seule fois
                     notebook_url = self.create_notebook(notebook_title)
                     
-                    # Si le batch est trop gros, le diviser en sous-lots
-                    if len(batch) > MAX_PER_UPLOAD:
-                        self.logger.info(f"⚠️  Batch trop gros, division en sous-lots de {MAX_PER_UPLOAD}")
-                        for j in range(0, len(batch), MAX_PER_UPLOAD):
-                            sub_batch = batch[j:j + MAX_PER_UPLOAD]
-                            is_first_upload = (j == 0)
-                            self.logger.info(f"   📦 Sous-lot {j//MAX_PER_UPLOAD + 1} : {len(sub_batch)} PDF(s)")
-                            self.upload_pdfs(sub_batch, notebook_title, notebook_url, is_first=is_first_upload)
-                            # Attendre entre les sous-lots
-                            if j + MAX_PER_UPLOAD < len(batch):
-                                self.logger.info("   ⏳ Attente de 15 secondes avant le prochain sous-lot...")
-                                time.sleep(15)  # Augmenté à 15s pour laisser NotebookLM respirer
-                    else:
-                        # Upload normal
-                        self.upload_pdfs(batch, notebook_title, notebook_url, is_first=True)
+                    # Diviser en lots de 50 et uploader dans le MÊME notebook
+                    num_lots = (len(batch) + MAX_PER_UPLOAD - 1) // MAX_PER_UPLOAD
+                    
+                    for j in range(num_lots):
+                        lot_start = j * MAX_PER_UPLOAD
+                        lot_end = min((j + 1) * MAX_PER_UPLOAD, len(batch))
+                        lot = batch[lot_start:lot_end]
+                        
+                        is_first = (j == 0)
+                        self.logger.info(f"   📦 Lot {j + 1}/{num_lots} : {len(lot)} PDF(s)")
+                        
+                        self.upload_pdfs(lot, notebook_title, notebook_url, is_first=is_first)
+                        
+                        # Attendre entre les lots
+                        if j < num_lots - 1:
+                            self.logger.info(f"   ⏳ Attente de 10 secondes...")
+                            time.sleep(10)
                     
                     created_notebooks.append({
                         'title': notebook_title,
@@ -273,7 +274,62 @@ class NotebookLMUploader:
                     self.logger.info(f"     {nb['url']}")
                 self.logger.info(f"📊 Logs sauvegardés : {self.upload_logger.get_log_path()}")
                 self.logger.info("=" * 60)
+                self.logger.info("")
+                self.logger.info("⏳ Attente de 30 secondes pour que NotebookLM finisse...")
+                time.sleep(30)
                 
+                self.logger.info("👋 Fermeture du navigateur...")
+                browser.close()
+        
+        except Exception as e:
+            self.logger.error(f"❌ Erreur : {e}")
+            sys.exit(1)
+    
+    def run_add_to_existing(self, folder: Path, notebook_url: str):
+        """Ajoute des PDFs à un notebook existant."""
+        self.logger.info("=" * 60)
+        self.logger.info(f"🚀 Ajout de PDFs à un notebook existant")
+        self.logger.info("=" * 60)
+        self.logger.info("")
+        
+        # Récupérer les PDFs
+        self.logger.info(f"📁 Scan du dossier : {folder}")
+        pdf_files = get_pdf_files(folder)
+        
+        if not pdf_files:
+            self.logger.warning("⚠️  Aucun fichier PDF trouvé")
+            sys.exit(0)
+        
+        total_size = sum(pdf.stat().st_size for pdf in pdf_files)
+        self.logger.info(f"   → {len(pdf_files)} PDF(s) trouvé(s) ({format_file_size(total_size)})")
+        self.logger.info("")
+        
+        try:
+            with sync_playwright() as p:
+                self.logger.info("✓ Session chargée depuis state.json")
+                browser = p.chromium.launch(headless=self.headless, slow_mo=100)
+                context = browser.new_context(storage_state=str(STATE_FILE))
+                self.page = context.new_page()
+                
+                # Aller sur le notebook existant
+                self.logger.info(f"🌐 Navigation vers le notebook...")
+                self.page.goto(notebook_url, timeout=TIMEOUT)
+                time.sleep(3)
+                
+                # Upload les PDFs
+                self.upload_pdfs(pdf_files, "Notebook existant", notebook_url, is_first=False)
+                
+                self.logger.info("")
+                self.logger.info("=" * 60)
+                self.logger.info("✅ Upload terminé !")
+                self.logger.info(f"📚 {len(pdf_files)} PDF(s) ajouté(s) au notebook")
+                self.logger.info(f"📓 {notebook_url}")
+                self.logger.info("=" * 60)
+                self.logger.info("")
+                self.logger.info("⏳ Attente de 30 secondes pour que NotebookLM finisse...")
+                time.sleep(30)
+                
+                self.logger.info("👋 Fermeture du navigateur...")
                 browser.close()
         
         except Exception as e:
@@ -295,8 +351,8 @@ def main():
     parser.add_argument(
         "--title",
         type=str,
-        required=True,
-        help="Titre du notebook"
+        required=False,
+        help="Titre du notebook (requis seulement pour nouveau notebook)"
     )
     parser.add_argument(
         "--headless",
@@ -309,6 +365,11 @@ def main():
         default=DEFAULT_LIMIT,
         help=f"Nombre max de sources par notebook (défaut: {DEFAULT_LIMIT})"
     )
+    parser.add_argument(
+        "--notebook-url",
+        type=str,
+        help="URL d'un notebook existant (pour ajouter des sources)"
+    )
     
     args = parser.parse_args()
     
@@ -317,10 +378,22 @@ def main():
         headless=args.headless,
         limit=args.limit
     )
-    uploader.run(
-        folder=Path(args.folder),
-        title=args.title
-    )
+    
+    if args.notebook_url:
+        # Ajouter à un notebook existant
+        uploader.run_add_to_existing(
+            folder=Path(args.folder),
+            notebook_url=args.notebook_url
+        )
+    else:
+        # Créer un nouveau notebook
+        if not args.title:
+            print("❌ --title est requis pour créer un nouveau notebook")
+            sys.exit(1)
+        uploader.run(
+            folder=Path(args.folder),
+            title=args.title
+        )
 
 
 if __name__ == "__main__":
