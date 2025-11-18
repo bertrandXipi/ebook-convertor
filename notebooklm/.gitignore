@@ -1,0 +1,14 @@
+# Session state
+state.json
+
+# Logs
+logs/
+*.log
+
+# PDFs de test
+pdfs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

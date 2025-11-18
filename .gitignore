@@ -35,3 +35,8 @@ logs/
 
 # Ne pas commiter l'icône personnalisée de l'utilisateur
 icon.png
+
+# NotebookLM
+notebooklm/state.json
+notebooklm/logs/
+notebooklm/pdfs/

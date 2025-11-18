@@ -32,6 +32,7 @@ Actuellement, l'utilisateur télécharge des livres depuis Z-Library, les conver
 **Script:** `set_login_state.py`
 
 **Comportement:**
+
 - Ouvre un navigateur Chromium en mode visible
 - Navigue vers https://notebooklm.google.com
 - Attend que l'utilisateur se connecte manuellement avec son compte Google
@@ -40,6 +41,7 @@ Actuellement, l'utilisateur télécharge des livres depuis Z-Library, les conver
 - Affiche un message de confirmation
 
 **Critères d'acceptation:**
+
 - ✅ Le fichier `state.json` est créé après connexion
 - ✅ La session reste valide pendant au moins 7 jours
 - ✅ Le script peut être relancé pour rafraîchir la session
@@ -52,6 +54,7 @@ Actuellement, l'utilisateur télécharge des livres depuis Z-Library, les conver
 **Script:** `upload_pdfs.py`
 
 **Comportement:**
+
 - Charge la session depuis `state.json`
 - Navigue vers NotebookLM
 - Crée un nouveau notebook
@@ -62,16 +65,19 @@ Actuellement, l'utilisateur télécharge des livres depuis Z-Library, les conver
 - Affiche la progression en temps réel dans le terminal
 
 **Paramètres:**
+
 ```bash
 python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
 ```
 
 **Options supplémentaires:**
+
 - `--headless` : Mode sans interface graphique (défaut: False)
 - `--timeout` : Timeout en secondes pour le processing (défaut: 60)
 - `--limit` : Nombre max de sources par notebook (défaut: 300)
 
 **Critères d'acceptation:**
+
 - ✅ Tous les PDFs du dossier sont uploadés
 - ✅ Le notebook est créé avec le titre spécifié
 - ✅ La progression est affichée (ex: "Uploading 3/10 PDFs...")
@@ -83,10 +89,12 @@ python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
 ### 3. Gestion des Limites NotebookLM
 
 **Limites:**
+
 - NotebookLM gratuit: **50 sources max** par notebook
 - NotebookLM Plus: **300 sources max** par notebook
 
 **Comportement:**
+
 - Si le dossier contient plus de PDFs que la limite, créer automatiquement plusieurs notebooks
 - Nommer les notebooks séquentiellement:
   - "Espagnol - Grammaire - Partie 1"
@@ -101,6 +109,7 @@ python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
   ```
 
 **Critères d'acceptation:**
+
 - ✅ Détection automatique du nombre de notebooks nécessaires
 - ✅ Création séquentielle des notebooks
 - ✅ Répartition équilibrée des PDFs entre notebooks
@@ -113,6 +122,7 @@ python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
 **Fichier:** `config.py`
 
 **Variables:**
+
 ```python
 # Chemins
 PDF_FOLDER = "./pdfs"           # Dossier source des PDFs
@@ -143,6 +153,7 @@ MAX_PDF_WORDS = 500000          # Nombre max de mots par PDF
 ```
 
 **Critères d'acceptation:**
+
 - ✅ Toutes les variables sont documentées
 - ✅ Valeurs par défaut sensées
 - ✅ Possibilité de surcharger via variables d'environnement
@@ -152,6 +163,7 @@ MAX_PDF_WORDS = 500000          # Nombre max de mots par PDF
 ### 5. Gestion d'Erreurs et Logging
 
 **Logs Terminal:**
+
 ```
 🚀 NotebookLM PDF Uploader (Pro - 300 sources/notebook)
 ============================================================
@@ -178,6 +190,7 @@ MAX_PDF_WORDS = 500000          # Nombre max de mots par PDF
 ```
 
 **Fichier CSV de Log:**
+
 ```csv
 timestamp,notebook_title,pdf_filename,status,error_message,url
 2025-11-18 14:30:45,Espagnol - Partie 1,livre_01.pdf,success,,https://notebooklm.google.com/notebook/abc123
@@ -186,12 +199,14 @@ timestamp,notebook_title,pdf_filename,status,error_message,url
 ```
 
 **Gestion d'erreurs:**
+
 - Try/except sur toutes les opérations critiques
 - Messages d'erreur clairs et actionnables
 - Possibilité de reprendre un upload interrompu (skip des PDFs déjà uploadés)
 - Timeout configurable pour éviter les blocages infinis
 
 **Critères d'acceptation:**
+
 - ✅ Logs détaillés dans le terminal avec emojis et couleurs
 - ✅ Fichier CSV créé avec horodatage
 - ✅ Gestion des erreurs courantes (session expirée, PDF trop gros, timeout)
@@ -202,24 +217,29 @@ timestamp,notebook_title,pdf_filename,status,error_message,url
 ## 🛠️ Stack Technique
 
 ### Langage
+
 - **Python 3.8+** (minimum requis pour Playwright)
 
 ### Dépendances Principales
 
 **requirements.txt:**
+
 ```
 playwright>=1.48.0
 python-dotenv>=1.0.0
 ```
 
 **Dépendances automatiques de Playwright:**
+
 - pyee>=13,<14
 - greenlet>=3.1.1,<4.0.0
 
 ### Navigateur
+
 - **Chromium** (installé via `playwright install chromium`)
 
 ### Installation
+
 ```bash
 # Créer environnement virtuel
 python3 -m venv venv
@@ -263,6 +283,7 @@ ebook-convertor/                    # Projet existant
 ### Sélecteurs à Utiliser
 
 **Bouton "New notebook":**
+
 ```python
 page.click('text=New notebook')
 # ou
@@ -270,12 +291,14 @@ page.click('button:has-text("New notebook")')
 ```
 
 **Input file pour upload:**
+
 ```python
 file_input = page.locator('input[type="file"]')
 file_input.set_input_files([path1, path2, path3, ...])
 ```
 
 **Zone de titre du notebook:**
+
 ```python
 page.fill('input[placeholder*="title"]', "Mon Titre")
 # ou
@@ -283,6 +306,7 @@ page.fill('[aria-label*="title"]', "Mon Titre")
 ```
 
 **Indicateurs de processing:**
+
 ```python
 # Attendre que les sources apparaissent
 page.wait_for_selector('.source-item', timeout=60000)
@@ -294,6 +318,7 @@ page.wait_for_selector('.processing-indicator', state='hidden')
 ### Méthode d'Upload
 
 **Approche 1: Multiple files via input (recommandée)**
+
 ```python
 file_input = page.locator('input[type="file"]')
 file_input.set_input_files([
@@ -304,6 +329,7 @@ file_input.set_input_files([
 ```
 
 **Approche 2: Drag & Drop (si nécessaire)**
+
 ```python
 # Utiliser dispatchEvent avec DataTransfer
 page.evaluate("""
@@ -340,21 +366,25 @@ browser = p.chromium.launch(headless=True)
 ## ⚠️ Contraintes Techniques
 
 ### Timeouts
+
 - **Timeout généreux** pour le processing des PDFs: 30-60 secondes par fichier volumineux
 - **Délai entre actions**: 1-2 secondes pour éviter rate limiting
 - **Timeout global**: Configurable, défaut 60 secondes
 
 ### Limites PDF
+
 - **Taille max par PDF**: 200 MB
 - **Nombre max de mots**: 500,000 mots par PDF
 - **Formats supportés**: PDF uniquement (pour cette version)
 
 ### Limites NotebookLM
+
 - **Gratuit**: 50 sources max par notebook
 - **Plus**: 300 sources max par notebook
 - **Rate limiting**: Respecter les délais entre requêtes
 
 ### Compatibilité
+
 - **Python**: ≥ 3.8 requis
 - **OS**: macOS, Linux, Windows
 - **Navigateur**: Chromium (géré par Playwright)
@@ -398,6 +428,7 @@ python upload_pdfs.py --folder "./pdfs" --title "Physique" --resume
 ## 🎁 Options Avancées (Nice to Have - V2)
 
 ### Phase 2 (Optionnel)
+
 - [ ] Flag `--parallel` pour créer plusieurs notebooks simultanément
 - [ ] Tri automatique des PDFs par thématique (basé sur noms de fichiers)
 - [ ] Intégration avec `watchdog` pour auto-upload quand nouveaux PDFs arrivent
@@ -411,6 +442,7 @@ python upload_pdfs.py --folder "./pdfs" --title "Physique" --resume
 ## ✅ Critères de Succès
 
 ### Fonctionnels
+
 - ✅ L'utilisateur peut uploader 100+ PDFs en un clic
 - ✅ La session reste valide pendant au moins 7 jours
 - ✅ Les notebooks sont créés automatiquement selon les limites
@@ -418,6 +450,7 @@ python upload_pdfs.py --folder "./pdfs" --title "Physique" --resume
 - ✅ Les erreurs sont loggées et l'utilisateur peut reprendre
 
 ### Techniques
+
 - ✅ Code Python propre et documenté
 - ✅ Gestion d'erreurs robuste
 - ✅ Logs détaillés et exploitables
@@ -425,6 +458,7 @@ python upload_pdfs.py --folder "./pdfs" --title "Physique" --resume
 - ✅ Compatible macOS (priorité), Linux, Windows
 
 ### UX
+
 - ✅ Messages clairs et informatifs dans le terminal
 - ✅ Progression visible en temps réel
 - ✅ Pas d'intervention manuelle requise après lancement
