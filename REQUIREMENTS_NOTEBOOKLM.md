@@ -69,7 +69,7 @@ python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
 **Options supplémentaires:**
 - `--headless` : Mode sans interface graphique (défaut: False)
 - `--timeout` : Timeout en secondes pour le processing (défaut: 60)
-- `--limit` : Nombre max de sources par notebook (défaut: 50)
+- `--limit` : Nombre max de sources par notebook (défaut: 300)
 
 **Critères d'acceptation:**
 - ✅ Tous les PDFs du dossier sont uploadés
@@ -95,10 +95,9 @@ python upload_pdfs.py --folder "./mes_pdfs" --title "Espagnol - Grammaire"
 - Afficher un résumé à la fin:
   ```
   ✅ Upload terminé !
-  📚 3 notebooks créés:
-     - Espagnol - Grammaire - Partie 1 (50 PDFs)
-     - Espagnol - Grammaire - Partie 2 (50 PDFs)
-     - Espagnol - Grammaire - Partie 3 (23 PDFs)
+  📚 2 notebooks créés:
+     - Espagnol - Grammaire - Partie 1 (300 PDFs)
+     - Espagnol - Grammaire - Partie 2 (123 PDFs)
   ```
 
 **Critères d'acceptation:**
@@ -126,8 +125,8 @@ DEFAULT_NOTEBOOK_TITLE = "Nouveau Notebook"
 
 # Limites
 MAX_SOURCES_FREE = 50           # Limite gratuite
-MAX_SOURCES_PLUS = 300          # Limite Plus
-DEFAULT_LIMIT = 50              # Limite par défaut
+MAX_SOURCES_PLUS = 300          # Limite Plus (Pro)
+DEFAULT_LIMIT = 300             # Limite par défaut (utilisateur Pro)
 
 # Playwright
 HEADLESS = False                # Mode headless
@@ -154,31 +153,27 @@ MAX_PDF_WORDS = 500000          # Nombre max de mots par PDF
 
 **Logs Terminal:**
 ```
-🚀 NotebookLM PDF Uploader
+🚀 NotebookLM PDF Uploader (Pro - 300 sources/notebook)
 ============================================================
 ✓ Session chargée depuis state.json
 🌐 Navigation vers NotebookLM...
 📚 Création du notebook "Espagnol - Grammaire"...
 📁 Scan du dossier: ./mes_pdfs
-   → 123 PDFs trouvés
+   → 423 PDFs trouvés
 
-⚠️  Limite de 50 sources détectée
-   → 3 notebooks seront créés
+⚠️  Limite de 300 sources détectée
+   → 2 notebooks seront créés
 
-📤 Upload Partie 1/3 (50 PDFs)...
-   [████████████████████] 50/50 (100%)
+📤 Upload Partie 1/2 (300 PDFs)...
+   [████████████████████] 300/300 (100%)
    ✓ Tous les fichiers traités
 
-📤 Upload Partie 2/3 (50 PDFs)...
-   [████████████████████] 50/50 (100%)
-   ✓ Tous les fichiers traités
-
-📤 Upload Partie 3/3 (23 PDFs)...
-   [████████████████████] 23/23 (100%)
+📤 Upload Partie 2/2 (123 PDFs)...
+   [████████████████████] 123/123 (100%)
    ✓ Tous les fichiers traités
 
 ✅ Upload terminé !
-📚 3 notebooks créés avec succès
+📚 2 notebooks créés avec succès
 📊 Logs sauvegardés: logs/upload_2025-11-18_14-30-45.csv
 ```
 
@@ -391,8 +386,8 @@ python upload_pdfs.py --folder "../Downloads/Espagnol_2025-11-18" --title "Espag
 # Mode headless
 python upload_pdfs.py --folder "./pdfs" --title "Maths" --headless
 
-# Limite personnalisée (NotebookLM Plus)
-python upload_pdfs.py --folder "./pdfs" --title "Histoire" --limit 300
+# Limite personnalisée (si besoin de limiter à moins de 300)
+python upload_pdfs.py --folder "./pdfs" --title "Histoire" --limit 100
 
 # Reprendre un upload interrompu
 python upload_pdfs.py --folder "./pdfs" --title "Physique" --resume
