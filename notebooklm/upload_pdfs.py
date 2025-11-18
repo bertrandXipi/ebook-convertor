@@ -246,8 +246,8 @@ class NotebookLMUploader:
                             self.upload_pdfs(sub_batch, notebook_title, notebook_url, is_first=is_first_upload)
                             # Attendre entre les sous-lots
                             if j + MAX_PER_UPLOAD < len(batch):
-                                self.logger.info("   ⏳ Attente avant le prochain sous-lot...")
-                                time.sleep(5)
+                                self.logger.info("   ⏳ Attente de 15 secondes avant le prochain sous-lot...")
+                                time.sleep(15)  # Augmenté à 15s pour laisser NotebookLM respirer
                     else:
                         # Upload normal
                         self.upload_pdfs(batch, notebook_title, notebook_url, is_first=True)
