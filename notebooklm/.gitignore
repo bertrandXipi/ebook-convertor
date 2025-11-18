@@ -1,6 +1,9 @@
 # Session state
 state.json
 
+# Environment variables (IMPORTANT: contient les identifiants)
+.env
+
 # Logs
 logs/
 *.log

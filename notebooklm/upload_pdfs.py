@@ -34,8 +34,8 @@ class NotebookLMUploader:
         self.logger.info(f"📚 Création du notebook '{title}'...")
         
         try:
-            # Cliquer sur "New notebook"
-            self.page.click('button:has-text("New notebook")', timeout=TIMEOUT)
+            # Cliquer sur le bouton "New notebook" (nouveau sélecteur)
+            self.page.click('.create-new-action-button-icon-container, button:has-text("New notebook")', timeout=TIMEOUT)
             time.sleep(DELAY_BETWEEN_ACTIONS)
             
             # Attendre que le notebook soit créé
