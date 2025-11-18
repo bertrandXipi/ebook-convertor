@@ -35,7 +35,8 @@ class NotebookLMUploader:
         
         try:
             # 1. Cliquer sur "Nouveau notebook"
-            self.page.wait_for_selector('.create-new-action-button-icon-container, button:has-text("New notebook")', state='visible')
+            self.page.wait_for_selector('.create-new-action-button-icon-container, button:has-text("New notebook")', state='visible', timeout=60000)
+            time.sleep(2)
             self.page.click('.create-new-action-button-icon-container, button:has-text("New notebook")')
             
             # 2. Attendre la redirection et le chargement complet
@@ -215,43 +216,32 @@ class NotebookLMUploader:
                 time.sleep(DELAY_BETWEEN_ACTIONS)
                 
                 # Traiter les PDFs par batch de 50 max
+                # SOLUTION FIABLE : 1 notebook par lot de 50
                 MAX_PER_UPLOAD = 50
                 created_notebooks = []
                 
-                for i in range(num_notebooks):
-                    start_idx = i * self.limit
-                    end_idx = min((i + 1) * self.limit, len(pdf_files))
-                    batch = pdf_files[start_idx:end_idx]
+                # Diviser TOUS les PDFs en lots de 50
+                total_lots = (len(pdf_files) + MAX_PER_UPLOAD - 1) // MAX_PER_UPLOAD
+                
+                for lot_idx in range(total_lots):
+                    start_idx = lot_idx * MAX_PER_UPLOAD
+                    end_idx = min((lot_idx + 1) * MAX_PER_UPLOAD, len(pdf_files))
+                    lot = pdf_files[start_idx:end_idx]
                     
                     # Titre du notebook
-                    if num_notebooks > 1:
-                        notebook_title = f"{title} - Partie {i + 1}"
+                    if total_lots > 1:
+                        notebook_title = f"{title} - Lot {lot_idx + 1}"
                     else:
                         notebook_title = title
                     
                     self.logger.info("")
-                    self.logger.info(f"📤 Notebook {i + 1}/{num_notebooks} : {len(batch)} PDF(s)")
+                    self.logger.info(f"📤 Notebook {lot_idx + 1}/{total_lots} : {len(lot)} PDF(s)")
                     
-                    # Créer le notebook une seule fois
+                    # Créer un nouveau notebook pour chaque lot
                     notebook_url = self.create_notebook(notebook_title)
                     
-                    # Diviser en lots de 50 et uploader dans le MÊME notebook
-                    num_lots = (len(batch) + MAX_PER_UPLOAD - 1) // MAX_PER_UPLOAD
-                    
-                    for j in range(num_lots):
-                        lot_start = j * MAX_PER_UPLOAD
-                        lot_end = min((j + 1) * MAX_PER_UPLOAD, len(batch))
-                        lot = batch[lot_start:lot_end]
-                        
-                        is_first = (j == 0)
-                        self.logger.info(f"   📦 Lot {j + 1}/{num_lots} : {len(lot)} PDF(s)")
-                        
-                        self.upload_pdfs(lot, notebook_title, notebook_url, is_first=is_first)
-                        
-                        # Attendre entre les lots
-                        if j < num_lots - 1:
-                            self.logger.info(f"   ⏳ Attente de 10 secondes...")
-                            time.sleep(10)
+                    # Upload le lot (toujours "premier upload" car nouveau notebook)
+                    self.upload_pdfs(lot, notebook_title, notebook_url, is_first=True)
                     
                     created_notebooks.append({
                         'title': notebook_title,
