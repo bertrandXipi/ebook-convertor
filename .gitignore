@@ -1,0 +1,37 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*~
+
+# Ne pas commiter l'icône personnalisée de l'utilisateur
+icon.png
